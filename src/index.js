@@ -1,5 +1,7 @@
 import React, {Component} from 'react'
 import ReactDOM from 'react-dom'
+import 'whatwg-fetch'
+
 import './index.css'
 
 const Assets = window.Assets = {
@@ -28,10 +30,30 @@ const Assets = window.Assets = {
         }
 
         image.onerror = () => {
-          reject(new Error(`Unable to load '${name}' from ${path}`))
+          reject(new Error(`Assets.load() :: FAILURE - Unable to load '${name}' from ${path}`))
         }
 
         image.src = path
+      }
+
+      const loadJson = (path, name) => {
+        window.fetch(path)
+          .then(response => {
+            if (response.status !== 200) {
+              return reject(`Assets.load() :: FAILURE - HTTP ${response.status}\nUnable to load '${name}' from ${path}`)
+            }
+            return response.json()
+          })
+          .then(json => {
+            window.console.log(`Assets.load() :: WORKING - Loaded '${name}' from ${path}`)
+            Assets[name] = json
+            loaded += 1
+
+            if (loaded >= toLoad) {
+              window.console.log(`Assets.load() :: COMPLETE - ${loaded}/${toLoad} assets loaded.`)
+              resolve()
+            }
+          })
       }
 
       assetIds.forEach(name => {
@@ -39,6 +61,8 @@ const Assets = window.Assets = {
 
         if (path.match(/png$/)) {
           loadImage(path, name)
+        } else if (path.match(/json$/)) {
+          loadJson(path, name)
         }
       })
     })
@@ -61,9 +85,21 @@ class App extends Component {
       screenWidth: 640,
       screenHeight: 480,
       screenColor: 'cornflowerblue',
+      tileWidth: 8,
+      tileHeight: 8,
+      location: 'world',
+      locations: {
+        town: 'OEL_TOWN',
+        world: 'OEL_WORLD',
+        dungeon: 'OEL_DUNGEON'
+      },
+      floorTiles: [0, 2, 4, 5, 7, 19],
+      playerStarted: false,
       map: {
         name: '?',
-        tiles: []
+        tiles: [],
+        warps: [],
+        mask: []
       }
     }
   }
@@ -79,7 +115,11 @@ class App extends Component {
 
   loadAssets () {
     const manifest = {
-      GFX_TILES: 'tiles.png'
+      GFX_PLAYER: 'player.png',
+      GFX_TILES: 'tiles.png',
+      OEL_TOWN: 'data/town.json',
+      OEL_WORLD: 'data/world.json',
+      OEL_DUNGEON: 'data/dungeon.json'
     }
 
     return Assets.load(manifest)
