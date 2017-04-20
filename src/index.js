@@ -95,7 +95,11 @@ class App extends Component {
         dungeon: 'OEL_DUNGEON'
       },
       floorTiles: [0, 2, 4, 5, 7, 19],
-      playerStarted: false,
+      player: {
+        x: 0,
+        y: 0,
+        started: false
+      },
       map: {
         name: '?',
         tiles: [],
@@ -144,7 +148,8 @@ class App extends Component {
       location,
       locations,
       floorTiles,
-      map
+      map,
+      player
     } = this.state
 
     const assetId = locations[location]
@@ -154,7 +159,8 @@ class App extends Component {
     const {
       width: mapScreenWidth,
       height: mapScreenHeight,
-      tiles
+      tiles,
+      objects
     } = source
 
     const {
@@ -163,6 +169,11 @@ class App extends Component {
       tileHeight,
       set: tileset = ''
     } = tiles
+
+    const {
+      warp: warpData = [],
+      start
+    } = objects
 
     const mapWidth = ~~(mapScreenWidth / tileWidth)
     const mapHeight = ~~(mapScreenHeight / tileHeight)
@@ -182,11 +193,32 @@ class App extends Component {
 
     map.mask = map.tiles.map(id => floorTiles.indexOf(id) === -1)
 
+    map.warps = warpData.map(({ x, y, to_x: destX, to_y: destY, to_map: destLocation }) => {
+      const warpPoint = {
+        x,
+        y,
+        destX,
+        destY,
+        destLocation
+      }
+
+      return warpPoint
+    })
+
+    if (start) {
+      if (!player.started) {
+        player.x = start.x
+        player.y = start.y
+        player.started = true
+      }
+    }
+
     this.setState(
       {
         tileWidth,
         tileHeight,
-        map
+        map,
+        player
       }
     )
   }
