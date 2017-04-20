@@ -76,6 +76,7 @@ class App extends Component {
     this.loadAssets = this.loadAssets.bind(this)
     this.focusCanvas = this.focusCanvas.bind(this)
     this.start = this.start.bind(this)
+    this.loadLocation = this.loadLocation.bind(this)
 
     this.onKeyDown = this.onKeyDown.bind(this)
     this.onKeyPress = this.onKeyPress.bind(this)
@@ -111,6 +112,7 @@ class App extends Component {
       })
       .then(this.focusCanvas)
       .then(this.start)
+      .then(this.loadLocation)
   }
 
   loadAssets () {
@@ -135,6 +137,58 @@ class App extends Component {
     this.canvas && this.animate()
 
     return Promise.resolve()
+  }
+
+  loadLocation () {
+    const {
+      location,
+      locations,
+      floorTiles,
+      map
+    } = this.state
+
+    const assetId = locations[location]
+
+    const source = Assets[assetId]
+
+    const {
+      width: mapScreenWidth,
+      height: mapScreenHeight,
+      tiles
+    } = source
+
+    const {
+      tile: tileData = [],
+      tileWidth,
+      tileHeight,
+      set: tileset = ''
+    } = tiles
+
+    const mapWidth = ~~(mapScreenWidth / tileWidth)
+    const mapHeight = ~~(mapScreenHeight / tileHeight)
+
+    map.name = location
+    map.tileset = `GFX_${tileset.toUpperCase()}`
+    map.width = mapWidth
+    map.height = mapHeight
+    map.tiles.length = 0
+
+    tileData.forEach(({ x, y, id }) => {
+      const column = ~~(x / tileWidth)
+      const row = ~~(y / tileHeight)
+      const index = column + row * mapWidth
+      map.tiles[index] = id
+    })
+
+    map.mask = map.tiles.map(id => floorTiles.indexOf(id) === -1)
+
+    this.setState(
+      {
+        tileWidth,
+        tileHeight,
+        map
+      }
+    )
   }
 
   animate () {
