@@ -90,6 +90,7 @@ class App extends Component {
     this.drawLocation = this.drawLocation.bind(this)
     this.drawPlayer = this.drawPlayer.bind(this)
     this.moveEntity = this.moveEntity.bind(this)
+    this.checkWarp = this.checkWarp.bind(this)
     this.onKeyDown = this.onKeyDown.bind(this)
 
     this.state = {
@@ -332,24 +333,73 @@ class App extends Component {
     return Promise.resolve(entity)
   }
 
+  checkWarp () {
+    return new Promise(resolve => {
+      const {
+        player,
+        map
+      } = this.state
+
+      const warpPoint = map.warps.filter(warp => {
+        return warp.x === player.x && warp.y === player.y
+      })[0]
+
+      if (warpPoint) {
+        if (map.name !== warpPoint.destLocation) {
+          this.setState(
+            {
+              location: warpPoint.destLocation
+            },
+            () => {
+              this.loadLocation()
+                .then(() => {
+                  player.x = warpPoint.destX
+                  player.y = warpPoint.destY
+
+                  this.setState(
+                    {
+                      player
+                    },
+                    resolve
+                  )
+                })
+            }
+          )
+        } else {
+          player.x = warpPoint.destX
+          player.y = warpPoint.destY
+
+          this.setState(
+            {
+              player
+            },
+            resolve
+          )
+        }
+      } else {
+        resolve()
+      }
+    })
+  }
+
   onKeyDown (event) {
     const redraw = this.animate
     const controls = {
       [KEY.UP] () {
         this.moveEntity(this.state.player, { y: -1 })
-          .then(player => this.setState({ player }, redraw))
+          .then(player => this.setState({ player }, () => this.checkWarp().then(redraw)))
       },
       [KEY.DOWN] () {
         this.moveEntity(this.state.player, { y: 1 })
-          .then(player => this.setState({ player }, redraw))
+          .then(player => this.setState({ player }, () => this.checkWarp().then(redraw)))
       },
       [KEY.LEFT] () {
         this.moveEntity(this.state.player, { x: -1 })
-          .then(player => this.setState({ player }, redraw))
+          .then(player => this.setState({ player }, () => this.checkWarp().then(redraw)))
       },
       [KEY.RIGHT] () {
         this.moveEntity(this.state.player, { x: 1 })
-          .then(player => this.setState({ player }, redraw))
+          .then(player => this.setState({ player }, () => this.checkWarp().then(redraw)))
       },
       [KEY.SPACE] () {},
       [KEY.ENTER] () {}
