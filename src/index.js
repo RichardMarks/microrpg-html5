@@ -69,6 +69,15 @@ const Assets = window.Assets = {
   }
 }
 
+const KEY = {
+  LEFT: 37,
+  RIGHT: 39,
+  UP: 38,
+  DOWN: 40,
+  ENTER: 13,
+  SPACE: 32
+}
+
 class App extends Component {
   constructor (props) {
     super(props)
@@ -77,14 +86,15 @@ class App extends Component {
     this.focusCanvas = this.focusCanvas.bind(this)
     this.start = this.start.bind(this)
     this.loadLocation = this.loadLocation.bind(this)
-
-    this.onKeyDown = this.onKeyDown.bind(this)
-    this.onKeyPress = this.onKeyPress.bind(this)
     this.animate = this.animate.bind(this)
+    this.drawLocation = this.drawLocation.bind(this)
+    this.drawPlayer = this.drawPlayer.bind(this)
+    this.moveEntity = this.moveEntity.bind(this)
+    this.onKeyDown = this.onKeyDown.bind(this)
 
     this.state = {
-      screenWidth: 640,
-      screenHeight: 480,
+      screenWidth: 320,
+      screenHeight: 240,
       screenColor: 'cornflowerblue',
       tileWidth: 8,
       tileHeight: 8,
@@ -114,9 +124,9 @@ class App extends Component {
       .catch(err => {
         window.console.error(err)
       })
+      .then(this.loadLocation)
       .then(this.focusCanvas)
       .then(this.start)
-      .then(this.loadLocation)
   }
 
   loadAssets () {
@@ -144,97 +154,210 @@ class App extends Component {
   }
 
   loadLocation () {
-    const {
-      location,
-      locations,
-      floorTiles,
-      map,
-      player
-    } = this.state
-
-    const assetId = locations[location]
-
-    const source = Assets[assetId]
-
-    const {
-      width: mapScreenWidth,
-      height: mapScreenHeight,
-      tiles,
-      objects
-    } = source
-
-    const {
-      tile: tileData = [],
-      tileWidth,
-      tileHeight,
-      set: tileset = ''
-    } = tiles
-
-    const {
-      warp: warpData = [],
-      start
-    } = objects
-
-    const mapWidth = ~~(mapScreenWidth / tileWidth)
-    const mapHeight = ~~(mapScreenHeight / tileHeight)
-
-    map.name = location
-    map.tileset = `GFX_${tileset.toUpperCase()}`
-    map.width = mapWidth
-    map.height = mapHeight
-    map.tiles.length = 0
-
-    tileData.forEach(({ x, y, id }) => {
-      const column = ~~(x / tileWidth)
-      const row = ~~(y / tileHeight)
-      const index = column + row * mapWidth
-      map.tiles[index] = id
-    })
-
-    map.mask = map.tiles.map(id => floorTiles.indexOf(id) === -1)
-
-    map.warps = warpData.map(({ x, y, to_x: destX, to_y: destY, to_map: destLocation }) => {
-      const warpPoint = {
-        x,
-        y,
-        destX,
-        destY,
-        destLocation
-      }
-
-      return warpPoint
-    })
-
-    if (start) {
-      if (!player.started) {
-        player.x = start.x
-        player.y = start.y
-        player.started = true
-      }
-    }
-
-    this.setState(
-      {
-        tileWidth,
-        tileHeight,
+    return new Promise(resolve => {
+      const {
+        location,
+        locations,
+        floorTiles,
         map,
         player
+      } = this.state
+
+      const assetId = locations[location]
+
+      const source = Assets[assetId]
+
+      const {
+        width: mapScreenWidth,
+        height: mapScreenHeight,
+        tiles,
+        objects
+      } = source
+
+      const {
+        tile: tileData = [],
+        tileWidth,
+        tileHeight,
+        set: tileset = ''
+      } = tiles
+
+      const {
+        warp: warpData = [],
+        start
+      } = objects
+
+      const mapWidth = ~~(mapScreenWidth / tileWidth)
+      const mapHeight = ~~(mapScreenHeight / tileHeight)
+
+      map.id = `OEL_${location.toUpperCase()}`
+      map.name = location
+      map.tileset = `GFX_${tileset.toUpperCase()}`
+      map.width = mapWidth
+      map.height = mapHeight
+      map.tiles.length = 0
+
+      tileData.forEach(({ x, y, id }) => {
+        const column = ~~(x / tileWidth)
+        const row = ~~(y / tileHeight)
+        const index = column + row * mapWidth
+        map.tiles[index] = id
+      })
+
+      map.mask = map.tiles.map(id => floorTiles.indexOf(id) === -1)
+
+      map.warps = warpData.map(({ x, y, to_x: destX, to_y: destY, to_map: destLocation }) => {
+        const warpPoint = {
+          x,
+          y,
+          destX,
+          destY,
+          destLocation
+        }
+
+        return warpPoint
+      })
+
+      if (start) {
+        if (!player.started) {
+          player.x = start.x
+          player.y = start.y
+          player.started = true
+        }
       }
-    )
+
+      this.setState(
+        {
+          tileWidth,
+          tileHeight,
+          map,
+          player
+        },
+        resolve
+      )
+    })
   }
 
   animate () {
-    window.requestAnimationFrame(this.animate)
-    this.ctx.fillStyle = this.state.screenColor
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
+    // window.requestAnimationFrame(this.animate)
+    this.drawLocation()
+    this.drawPlayer()
+  }
+
+  drawLocation () {
+    const {
+      map,
+      tileWidth,
+      tileHeight
+    } = this.state
+
+    const {
+      tileset,
+      tiles,
+      width,
+      height,
+      name
+    } = map
+
+    const tileImage = Assets[tileset]
+    const tilesAcross = ~~(tileImage.width / tileWidth)
+    const tilesDown = ~~(tileImage.height / tileHeight)
+    const tileCount = tilesAcross * tilesDown
+
+    const drawTile = (x, y, tileId) => {
+      const index = tileId % tileCount
+      const srcX = ~~(index % tilesAcross)
+      const srcY = ~~(tileId / tilesAcross)
+      this.ctx.drawImage(tileImage, srcX * tileWidth, srcY * tileHeight, tileWidth, tileHeight, x, y, tileWidth, tileHeight)
+    }
+
+    for (let row = 0; row < height; row += 1) {
+      for (let column = 0; column < width; column += 1) {
+        const index = column + row * width
+        const tileId = tiles[index]
+
+        drawTile(column * tileWidth, row * tileHeight, tileId)
+      }
+    }
+
+    this.ctx.save()
+    this.ctx.fillStyle = 'white'
+    this.ctx.textBaseline = 'bottom'
+    this.ctx.textAlign = 'center'
+    this.ctx.font = 'bold 16px monospace'
+    this.ctx.fillText(name, this.state.screenWidth / 2, this.state.screenHeight)
+    this.ctx.restore()
+  }
+
+  drawPlayer () {
+    const { player } = this.state
+
+    const playerImage = Assets.GFX_PLAYER
+
+    const {
+      width,
+      height
+    } = playerImage
+
+    this.ctx.save()
+    this.ctx.translate(player.x, player.y)
+    this.ctx.drawImage(playerImage, 0, 0, width, height, 0, 0, width, height)
+    this.ctx.restore()
+  }
+
+  moveEntity (entity, { x: xMove = 0, y: yMove = 0, noClip = false }) {
+    const { x, y } = entity
+
+    const {
+      tileWidth,
+      tileHeight,
+      map
+    } = this.state
+
+    const step = tileWidth
+
+    if (noClip) {
+      entity.x += (xMove * step)
+      entity.y += (yMove * step)
+    } else {
+      const nextX = ~~((entity.x + (xMove * step)) / tileWidth)
+      const nextY = ~~((entity.y + (yMove * step)) / tileHeight)
+      const isSolid = (lookX, lookY) => map.mask[lookX + (lookY * map.width)]
+
+      if (!isSolid(nextX, nextY)) {
+        entity.x = nextX * tileWidth
+        entity.y = nextY * tileHeight
+      }
+    }
+
+    return Promise.resolve(entity)
   }
 
   onKeyDown (event) {
+    const redraw = this.animate
+    const controls = {
+      [KEY.UP] () {
+        this.moveEntity(this.state.player, { y: -1 })
+          .then(player => this.setState({ player }, redraw))
+      },
+      [KEY.DOWN] () {
+        this.moveEntity(this.state.player, { y: 1 })
+          .then(player => this.setState({ player }, redraw))
+      },
+      [KEY.LEFT] () {
+        this.moveEntity(this.state.player, { x: -1 })
+          .then(player => this.setState({ player }, redraw))
+      },
+      [KEY.RIGHT] () {
+        this.moveEntity(this.state.player, { x: 1 })
+          .then(player => this.setState({ player }, redraw))
+      },
+      [KEY.SPACE] () {},
+      [KEY.ENTER] () {}
+    }
 
-  }
+    const control = controls[event.keyCode]
 
-  onKeyPress (event) {
-
+    control && control.bind(this)()
   }
 
   render () {
@@ -254,6 +377,10 @@ class App extends Component {
             className='app__canvas'
             width={this.state.screenWidth}
             height={this.state.screenHeight}
+            style={{
+              width: this.state.screenWidth * 2,
+              height: this.state.screenHeight * 2
+            }}
           />
         </div>
       </div>

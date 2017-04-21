@@ -20,7 +20,7 @@ body {
 }
 
 .app__canvas {
-  border: 1px solid black;
+  image-rendering: pixelated;
 }
 
 .app__controller:focus {
