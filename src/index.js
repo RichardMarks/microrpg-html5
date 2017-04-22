@@ -320,8 +320,8 @@ class App extends Component {
       entity.x += (xMove * step)
       entity.y += (yMove * step)
     } else {
-      const nextX = ~~((entity.x + (xMove * step)) / tileWidth)
-      const nextY = ~~((entity.y + (yMove * step)) / tileHeight)
+      const nextX = ~~((x + (xMove * step)) / tileWidth)
+      const nextY = ~~((y + (yMove * step)) / tileHeight)
       const isSolid = (lookX, lookY) => map.mask[lookX + (lookY * map.width)]
 
       if (!isSolid(nextX, nextY)) {
