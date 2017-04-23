@@ -575,6 +575,11 @@ class App extends Component {
                 delete item.x
                 delete item.y
                 delete item.removeFromMap
+                delete item.id
+
+                map.items.forEach((itemOnMap, index) => {
+                  itemOnMap.id = index
+                })
 
                 this.setState(
                   {
