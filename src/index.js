@@ -93,6 +93,10 @@ class App extends Component {
     this.checkWarp = this.checkWarp.bind(this)
     this.onKeyDown = this.onKeyDown.bind(this)
 
+    this.populateLocationWithItems = this.populateLocationWithItems.bind(this)
+    this.checkItem = this.checkItem.bind(this)
+    this.addItemToInventory = this.addItemToInventory.bind(this)
+
     this.state = {
       screenWidth: 320,
       screenHeight: 240,
@@ -111,10 +115,12 @@ class App extends Component {
         y: 0,
         started: false
       },
+      inventory: [],
       map: {
         name: '?',
         tiles: [],
         warps: [],
+        items: [],
         mask: []
       }
     }
@@ -126,6 +132,7 @@ class App extends Component {
         window.console.error(err)
       })
       .then(this.loadLocation)
+      .then(this.populateLocationWithItems)
       .then(this.focusCanvas)
       .then(this.start)
   }
@@ -254,6 +261,7 @@ class App extends Component {
     const {
       tileset,
       tiles,
+      items,
       width,
       height,
       name
@@ -279,6 +287,14 @@ class App extends Component {
         drawTile(column * tileWidth, row * tileHeight, tileId)
       }
     }
+
+    const itemWidth = ~~(tileWidth * 0.5)
+    const itemCx = ~~((tileWidth - itemWidth) * 0.5)
+    const itemCy = ~~((tileHeight - itemWidth) * 0.5)
+    items.forEach(item => {
+      this.ctx.fillStyle = 'yellow'
+      this.ctx.fillRect(item.x + itemCx, item.y + itemCy, itemWidth, itemWidth)
+    })
 
     this.ctx.save()
     this.ctx.fillStyle = 'white'
@@ -352,6 +368,7 @@ class App extends Component {
             },
             () => {
               this.loadLocation()
+                .then(this.populateLocationWithItems)
                 .then(() => {
                   player.x = warpPoint.destX
                   player.y = warpPoint.destY
@@ -408,6 +425,144 @@ class App extends Component {
     const control = controls[event.keyCode]
 
     control && control.bind(this)()
+  }
+
+  populateLocationWithItems () {
+    return new Promise(resolve => {
+      const {
+        map,
+        tileWidth,
+        tileHeight
+      } = this.state
+
+      const {
+        width,
+        height,
+        mask,
+        warps
+      } = map
+
+      // build linear array of positions that are not solid
+      // and are not warp tiles
+      const openCells = []
+
+      const isWarp = (column, row) => {
+        const samePosition = warp => {
+          return (warp.x === column * tileWidth) && (warp.y === row * tileHeight)
+        }
+
+        return warps.filter(samePosition).length > 0
+      }
+
+      for (let row = 0; row < height; row += 1) {
+        for (let column = 0; column < width; column += 1) {
+          const index = column + row * width
+
+          if (!mask[index] && !isWarp(column, row)) {
+            const cell = { row, column }
+
+            openCells.push(cell)
+          }
+        }
+      }
+
+      const numItems = 3 + ~~(Math.random() * 12)
+
+      const getRandomUnusedMapCell = () => {
+        const index = ~~(Math.random() * openCells.length)
+
+        const cell = openCells[index]
+
+        openCells.splice(index, 1)
+
+        return cell
+      }
+
+      const itemFactories = [
+        () => {
+          return {
+            name: 'Potion',
+            sell: 5,
+            buy: 10,
+            usable: ['field', 'battle'],
+            targets: ['ally'],
+            use (target) {
+              target && (target.health += ~~(target.maxHealth * 0.25))
+              target && (target.health = target.health > target.maxHealth ? target.maxHealth : target.health)
+            }
+          }
+        },
+        () => {
+          return {
+            name: 'Antidote',
+            sell: 10,
+            buy: 25,
+            usable: ['field', 'battle'],
+            targets: ['ally'],
+            use (target) {
+              target && target.poisoned && (target.poisoned = false)
+            }
+          }
+        },
+        () => {
+          const stick = {
+            name: 'Stick',
+            attack: 5,
+            critical: 10,
+            sell: 1,
+            buy: 0,
+            usable: ['battle'],
+            targets: ['foe'],
+            use (target) {
+              target && (target.health -= (stick.attack + ~~(Math.random() * stick.critical)))
+            }
+          }
+
+          return stick
+        }
+      ]
+
+      const randomItem = (props) => {
+        const index = ~~(Math.random() * itemFactories.length)
+
+        const item = itemFactories[index]()
+
+        Object.assign(item, props)
+
+        return item
+      }
+
+      map.items.length = 0
+
+      for (let i = 0; i < numItems; i += 1) {
+        const cell = getRandomUnusedMapCell()
+
+        const item = randomItem(
+          {
+            id: i,
+            x: cell.column * tileWidth,
+            y: cell.row * tileHeight
+          }
+        )
+
+        map.items[i] = item
+      }
+
+      this.setState(
+        {
+          map
+        },
+        resolve
+      )
+    })
+  }
+
+  checkItem () {
+
+  }
+
+  addItemToInventory () {
+
   }
 
   render () {
