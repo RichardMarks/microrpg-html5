@@ -96,6 +96,9 @@ class App extends Component {
     this.populateLocationWithItems = this.populateLocationWithItems.bind(this)
     this.checkItem = this.checkItem.bind(this)
     this.addItemToInventory = this.addItemToInventory.bind(this)
+    this.fadeIn = this.fadeIn.bind(this)
+    this.fadeOut = this.fadeOut.bind(this)
+    this.teleportFlash = this.teleportFlash.bind(this)
 
     this.state = {
       screenWidth: 320,
@@ -135,6 +138,7 @@ class App extends Component {
       .then(this.populateLocationWithItems)
       .then(this.focusCanvas)
       .then(this.start)
+      .then(this.fadeIn)
   }
 
   loadAssets () {
@@ -246,9 +250,10 @@ class App extends Component {
   }
 
   animate () {
-    // window.requestAnimationFrame(this.animate)
     this.drawLocation()
     this.drawPlayer()
+
+    return Promise.resolve()
   }
 
   drawLocation () {
@@ -350,48 +355,59 @@ class App extends Component {
   }
 
   checkWarp () {
-    return new Promise(resolve => {
-      const {
-        player,
-        map
-      } = this.state
+    const {
+      player,
+      map
+    } = this.state
 
-      const warpPoint = map.warps.filter(warp => {
+    let warpPoint = null
+
+    const movePlayerToWarpDestination = () => {
+      return new Promise(resolve => {
+        player.x = warpPoint.destX
+        player.y = warpPoint.destY
+
+        this.setState(
+          {
+            player
+          },
+          resolve
+        )
+      })
+    }
+
+    const changeLocationToWarpDestination = () => {
+      return new Promise(resolve => {
+        this.setState(
+          {
+            location: warpPoint.destLocation
+          },
+          () => {
+            this.loadLocation()
+              .then(this.populateLocationWithItems)
+              .then(this.animate)
+              .then(resolve)
+          }
+        )
+      })
+    }
+
+    return new Promise(resolve => {
+      warpPoint = map.warps.filter(warp => {
         return warp.x === player.x && warp.y === player.y
       })[0]
 
       if (warpPoint) {
         if (map.name !== warpPoint.destLocation) {
-          this.setState(
-            {
-              location: warpPoint.destLocation
-            },
-            () => {
-              this.loadLocation()
-                .then(this.populateLocationWithItems)
-                .then(() => {
-                  player.x = warpPoint.destX
-                  player.y = warpPoint.destY
-
-                  this.setState(
-                    {
-                      player
-                    },
-                    resolve
-                  )
-                })
-            }
-          )
+          this.fadeOut()
+            .then(movePlayerToWarpDestination)
+            .then(changeLocationToWarpDestination)
+            .then(this.fadeIn)
+            .then(resolve)
         } else {
-          player.x = warpPoint.destX
-          player.y = warpPoint.destY
-
-          this.setState(
-            {
-              player
-            },
-            resolve
-          )
+          this.teleportFlash()
+            .then(movePlayerToWarpDestination)
+            .then(resolve)
         }
       } else {
         resolve()
@@ -556,6 +572,9 @@ class App extends Component {
                 const { map } = this.state
 
                 map.items.splice(item.id, 1)
+                delete item.x
+                delete item.y
+                delete item.removeFromMap
 
                 this.setState(
                   {
@@ -632,13 +651,84 @@ class App extends Component {
             width={this.state.screenWidth}
             height={this.state.screenHeight}
             style={{
-              width: this.state.screenWidth * 2,
-              height: this.state.screenHeight * 2
+              width: this.state.screenWidth * 3,
+              height: this.state.screenHeight * 3
             }}
           />
         </div>
+        {
+          this.state.fading && (
+            <div className={this.state.fadeClass} />
+          )
+        }
       </div>
     )
+  }
+
+  fadeIn () {
+    return new Promise(resolve => {
+      this.setState(
+        {
+          fading: true,
+          fadeClass: 'app__fader app__fader--fade-in'
+        },
+        () => {
+          setTimeout(() => {
+            this.setState(
+              {
+                fading: false
+              },
+              resolve
+            )
+          },
+          1000)
+        }
+      )
+    })
+  }
+
+  fadeOut () {
+    return new Promise(resolve => {
+      this.setState(
+        {
+          fading: true,
+          fadeClass: 'app__fader app__fader--fade-out'
+        },
+        () => {
+          setTimeout(() => {
+            this.setState(
+              {
+                fading: false
+              },
+              resolve
+            )
+          },
+          1000)
+        }
+      )
+    })
+  }
+
+  teleportFlash () {
+    return new Promise(resolve => {
+      this.setState(
+        {
+          fading: true,
+          fadeClass: 'app__fader app__fader--teleport-flash'
+        },
+        () => {
+          setTimeout(() => {
+            this.setState(
+              {
+                fading: false
+              },
+              resolve
+            )
+          },
+          60)
+        }
+      )
+    })
   }
 }
 

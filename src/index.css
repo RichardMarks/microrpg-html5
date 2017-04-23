@@ -13,7 +13,6 @@ body {
 .app__main-container {
   width: 100vw;
   height: 100vh;
-  box-shadow: inset 0px 0px 81px 0px rgba(61, 33, 222, 1);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -25,4 +24,41 @@ body {
 
 .app__controller:focus {
   outline: none;
+}
+
+.app__fader {
+  position: absolute;
+  z-index: 65535;
+  background: black;
+  width: 100vw;
+  height: 100vh;
+}
+
+.app__fader--fade-in {
+  animation: fadein 1s;
+}
+
+.app__fader--fade-out {
+  animation: fadeout 1s;
+}
+
+.app__fader--teleport-flash {
+  animation: flash linear 0.1s infinite;
+  background: white;
+}
+
+@keyframes fadein {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes fadeout {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes flash {
+  0% { opacity: 1; }
+  50% { opacity: 0.1; }
+  100% { opacity: 1; }
 }
