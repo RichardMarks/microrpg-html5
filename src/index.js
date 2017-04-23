@@ -418,7 +418,16 @@ class App extends Component {
         this.moveEntity(this.state.player, { x: 1 })
           .then(player => this.setState({ player }, () => this.checkWarp().then(redraw)))
       },
-      [KEY.SPACE] () {},
+      [KEY.SPACE] () {
+        this.checkItem()
+          .then(foundItem => {
+            if (foundItem) {
+              window.console.warn('Found Item!', foundItem.name)
+              this.addItemToInventory(foundItem)
+                .then(redraw)
+            }
+          })
+      },
       [KEY.ENTER] () {}
     }
 
@@ -541,7 +550,21 @@ class App extends Component {
           {
             id: i,
             x: cell.column * tileWidth,
-            y: cell.row * tileHeight
+            y: cell.row * tileHeight,
+            removeFromMap: () => {
+              return new Promise(resolve => {
+                const { map } = this.state
+
+                map.items.splice(item.id, 1)
+
+                this.setState(
+                  {
+                    map
+                  },
+                  resolve
+                )
+              })
+            }
           }
         )
 
@@ -558,11 +581,37 @@ class App extends Component {
   }
 
   checkItem () {
+    return new Promise(resolve => {
+      const {
+        player,
+        map
+      } = this.state
 
+      const foundItem = map.items.filter(item => {
+        return item.x === player.x && item.y === player.y
+      })[0]
+
+      if (foundItem) {
+        resolve(foundItem)
+      } else {
+        resolve(undefined)
+      }
+    })
   }
 
-  addItemToInventory () {
+  addItemToInventory (item) {
+    return new Promise(resolve => {
+      const { inventory } = this.state
 
+      inventory.push(item)
+
+      this.setState(
+        {
+          inventory
+        },
+        () => item.removeFromMap().then(resolve)
+      )
+    })
   }
 
   render () {
