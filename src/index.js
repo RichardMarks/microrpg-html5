@@ -99,6 +99,7 @@ class App extends Component {
     this.fadeIn = this.fadeIn.bind(this)
     this.fadeOut = this.fadeOut.bind(this)
     this.teleportFlash = this.teleportFlash.bind(this)
+    this.drawMessageBox = this.drawMessageBox.bind(this)
 
     this.state = {
       screenWidth: 320,
@@ -130,6 +131,14 @@ class App extends Component {
   }
 
   componentDidMount () {
+    const waitForFontsToLoad = () => {
+      // no real way to handle this appropriately
+      // so we fake the wait with a 1s delay
+      return new Promise(resolve => {
+        setTimeout(resolve, 1000)
+      })
+    }
+
     this.loadAssets()
       .catch(err => {
         window.console.error(err)
@@ -137,8 +146,10 @@ class App extends Component {
       .then(this.loadLocation)
       .then(this.populateLocationWithItems)
       .then(this.focusCanvas)
+      .then(waitForFontsToLoad)
       .then(this.start)
       .then(this.fadeIn)
+      .then(this.animate)
   }
 
   loadAssets () {
@@ -252,6 +263,7 @@ class App extends Component {
   animate () {
     this.drawLocation()
     this.drawPlayer()
+    // this.drawMessageBox()
 
     return Promise.resolve()
   }
@@ -301,13 +313,13 @@ class App extends Component {
       this.ctx.fillRect(item.x + itemCx, item.y + itemCy, itemWidth, itemWidth)
     })
 
-    this.ctx.save()
-    this.ctx.fillStyle = 'white'
-    this.ctx.textBaseline = 'bottom'
-    this.ctx.textAlign = 'center'
-    this.ctx.font = 'bold 16px monospace'
-    this.ctx.fillText(name, this.state.screenWidth / 2, this.state.screenHeight)
-    this.ctx.restore()
+    // this.ctx.save()
+    // this.ctx.fillStyle = 'white'
+    // this.ctx.textBaseline = 'bottom'
+    // this.ctx.textAlign = 'center'
+    // this.ctx.font = 'bold 16px monospace'
+    // this.ctx.fillText(name, this.state.screenWidth / 2, this.state.screenHeight)
+    // this.ctx.restore()
   }
 
   drawPlayer () {
@@ -734,6 +746,99 @@ class App extends Component {
         }
       )
     })
+  }
+
+  drawMessageBox () {
+    const { ctx } = this
+    const { screenWidth, screenHeight } = this.state
+
+    const boxWidth = ~~(screenWidth * 0.9)
+    const boxHeight = ~~(screenHeight * 0.3)
+
+    const boxCx = ~~((screenWidth - boxWidth) * 0.5)
+
+    ctx.save()
+
+    const radius = {
+      topLeft: 16,
+      topRight: 16,
+      bottomLeft: 16,
+      bottomRight: 16
+    }
+
+    const backFill = ctx.createLinearGradient(0, 0, 0, boxHeight)
+    backFill.addColorStop(0, 'blue')
+    backFill.addColorStop(1, 'navy')
+
+
+    ctx.font = '8px "Press Start 2P"'
+    ctx.textBaseline = 'top'
+
+    ctx.lineWidth = 2
+
+    ctx.translate(boxCx, screenHeight - (boxHeight + boxCx))
+
+    const roundRect = () => {
+      ctx.beginPath()
+      ctx.moveTo(radius.topLeft, 0)
+      ctx.lineTo(boxWidth - radius.topRight, 0)
+      ctx.quadraticCurveTo(boxWidth, 0, boxWidth, radius.topRight)
+      ctx.lineTo(boxWidth, boxHeight - radius.bottomRight)
+      ctx.quadraticCurveTo(boxWidth, boxHeight, boxWidth - radius.bottomRight, boxHeight)
+      ctx.lineTo(radius.bottomLeft, boxHeight)
+      ctx.quadraticCurveTo(0, boxHeight, 0, boxHeight - radius.bottomLeft)
+      ctx.lineTo(0, radius.topLeft)
+      ctx.quadraticCurveTo(0, 0, radius.topLeft, 0)
+      ctx.closePath()
+      ctx.fill()
+      ctx.strokeStyle && ctx.stroke()
+    }
+
+    const shadowX = 4
+    const shadowY = 8
+
+    ctx.translate(-shadowX, shadowY)
+    ctx.fillStyle = 'rgba(40, 0, 40, 0.8)'
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0)'
+    roundRect()
+    ctx.translate(shadowX, -shadowY)
+    ctx.strokeStyle = 'white'
+    ctx.fillStyle = backFill
+    roundRect()
+
+    const writeText = (text) => {
+      ctx.strokeText(text, 0, cursorY)
+      ctx.fillText(text, 0, cursorY)
+    }
+
+    let cursorY = 0
+    const fontSize = 8
+    const lineHeight = 1.95
+    const cursorMoveY = ~~(lineHeight * fontSize)
+    ctx.translate(16, 16)
+    ctx.fillStyle = 'white'
+    ctx.strokeStyle = '#222'
+    ctx.lineWidth = 4
+    ctx.miterLimit = 1
+    ctx.lineJoin = 'miter'
+    writeText('Hello, Traveler. 0123456789')
+    cursorY += cursorMoveY
+    writeText('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef', 0, cursorY)
+    cursorY += cursorMoveY
+    writeText('This is a Moji test: 😎 🍕 💥', 0, cursorY)
+    cursorY += cursorMoveY
+    ctx.beginPath()
+
+    const arrowX = boxWidth - (boxCx + 32)
+    cursorY -= 4
+    ctx.moveTo(arrowX, cursorY)
+    ctx.lineTo(arrowX + 16, cursorY)
+    ctx.lineTo(arrowX + 8, cursorY + 8)
+    ctx.closePath()
+    ctx.stroke()
+    ctx.fill()
+
+    ctx.restore()
   }
 }
 
